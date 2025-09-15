@@ -164,6 +164,11 @@ export interface DashboardStats {
   totalVendas: number;
   pedidosPendentes: number;
   produtosSemEstoque: number;
+  // Campos de tendência
+  novosClientes: number;
+  novosProdutos: number;
+  crescimentoVendas: number;
+  crescimentoPedidos: number;
 }
 
 export interface VendaPorPeriodo {
