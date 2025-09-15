@@ -79,7 +79,7 @@ export default function ClienteDetalhePage() {
       const pedidosRef = collection(db, 'pedidos');
       const pedidosQuery = query(
         pedidosRef, 
-        where('clienteId', '==', clienteId),
+        where('userId', '==', clienteId),
         orderBy('dataPedido', 'desc')
       );
       const pedidosSnapshot = await getDocs(pedidosQuery);
@@ -94,7 +94,7 @@ export default function ClienteDetalhePage() {
       const enderecosRef = collection(db, 'enderecos');
       const enderecosQuery = query(
         enderecosRef,
-        where('clienteId', '==', clienteId)
+        where('userId', '==', clienteId)
       );
       const enderecosSnapshot = await getDocs(enderecosQuery);
       const enderecosData = enderecosSnapshot.docs.map(doc => ({

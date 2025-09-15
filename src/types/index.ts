@@ -1,17 +1,26 @@
-// Tipos baseados nos modelos do app mobile Flutter
+// Tipos padronizados - usando tipos compartilhados
+// Importar tipos compartilhados (copie o conteúdo de shared/types.ts aqui)
 
-export interface Cliente {
+// ===== USUÁRIOS/CLIENTES =====
+export interface User {
   id: string;
   nome: string;
   email: string;
-  whatsapp: string;
+  telefone: string;
   dataCadastro: Date;
   cadastroCompleto: boolean;
   ativo: boolean;
   ultimoLogin?: Date;
   enderecos?: Endereco[];
+  // Campos de compatibilidade
+  whatsapp?: string; // Alias para telefone
 }
 
+// Alias para compatibilidade
+export type Cliente = User;
+export type Usuario = User;
+
+// ===== PRODUTOS =====
 export interface Produto {
   id: string;
   nome: string;
@@ -35,10 +44,19 @@ export interface Produto {
   promocaoDataInicio?: Date;
   promocaoDataFinal?: Date;
   precoPromocional?: number;
+  // Campos de compatibilidade
+  promo_price?: number;
+  promo_price_per_100g?: number;
+  promo_status?: string;
+  unit_type?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
+// Alias para compatibilidade
+export type Product = Produto;
+
+// ===== CATEGORIAS =====
 export interface Categoria {
   id: string;
   nome: string;
@@ -51,9 +69,13 @@ export interface Categoria {
   updatedAt?: Date;
 }
 
+// Alias para compatibilidade
+export type Category = Categoria;
+
+// ===== ENDEREÇOS =====
 export interface Endereco {
   id: string;
-  clienteId: string;
+  userId: string; // Padronizado - sempre userId
   cep: string;
   logradouro: string;
   numero: string;
@@ -62,28 +84,56 @@ export interface Endereco {
   cidade: string;
   estado: string;
   principal: boolean;
+  // Campos de compatibilidade
+  clienteId?: string; // Deprecated - usar userId
+  usuarioId?: string; // Deprecated - usar userId
 }
 
+// ===== CARRINHO =====
 export interface CarrinhoItem {
-  produto: Produto;
-  quantidade: number;
-  subtotal: number;
+  id: string;
+  name: string;
+  price: number;
+  qty: number;
+  barcode?: string;
+  category?: string;
+  // Campos de compatibilidade
+  produto?: Produto;
+  quantidade?: number;
+  subtotal?: number;
 }
 
+// Alias para compatibilidade
+export type CartItem = CarrinhoItem;
+
+// ===== PEDIDOS =====
 export interface Pedido {
   id: string;
-  clienteId: string;
+  userId: string; // Padronizado - sempre userId
   itens: CarrinhoItem[];
   total: number;
-  status: 'pendente' | 'confirmado' | 'preparando' | 'saiu_entrega' | 'entregue' | 'cancelado';
+  status:
+    | "pendente"
+    | "confirmado"
+    | "preparando"
+    | "saiu_entrega"
+    | "entregue"
+    | "cancelado";
   endereco: Endereco;
   dataPedido: Date;
   dataEntrega?: Date;
   observacoes?: string;
   metodoPagamento: string;
+  // Campos de compatibilidade
+  clienteId?: string; // Deprecated - usar userId
+  usuarioId?: string; // Deprecated - usar userId
 }
 
-export interface NotificationModel {
+// Alias para compatibilidade
+export type Order = Pedido;
+
+// ===== NOTIFICAÇÕES =====
+export interface Notificacao {
   id: string;
   title: string;
   body: string;
@@ -91,8 +141,11 @@ export interface NotificationModel {
   timestamp: Date;
   read: boolean;
   userId?: string;
-  type: 'promocao' | 'pedido' | 'sistema' | 'oferta';
+  type: "promocao" | "pedido" | "sistema" | "oferta";
 }
+
+// Alias para compatibilidade
+export type NotificationModel = Notificacao;
 
 export interface NotificationSettings {
   promocoes: boolean;
@@ -158,7 +211,7 @@ export interface CategoriaForm {
 export interface NotificacaoForm {
   title: string;
   body: string;
-  type: 'promocao' | 'pedido' | 'sistema' | 'oferta';
+  type: "promocao" | "pedido" | "sistema" | "oferta";
   targetUsers?: string[];
   sendToAll: boolean;
   data?: Record<string, unknown>;

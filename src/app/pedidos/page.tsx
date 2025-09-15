@@ -15,7 +15,7 @@ interface Cliente {
 
 interface Pedido {
   id: string;
-  clienteId: string;
+  userId: string;
   cliente?: Cliente;
   total: number;
   status: string;
@@ -52,9 +52,9 @@ export default function PedidosPage() {
           } as Pedido;
           
           // Buscar dados do cliente
-          if (pedidoData.clienteId) {
+          if (pedidoData.userId) {
             try {
-              const clienteDoc = await getDoc(doc(db, 'clientes', pedidoData.clienteId));
+              const clienteDoc = await getDoc(doc(db, 'clientes', pedidoData.userId));
               if (clienteDoc.exists()) {
                 pedidoData.cliente = {
                   id: clienteDoc.id,

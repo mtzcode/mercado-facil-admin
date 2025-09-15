@@ -27,7 +27,7 @@ interface Endereco {
 
 interface Pedido {
   id: string;
-  clienteId: string;
+  userId: string;
   cliente?: Cliente;
   total: number;
   status: string;
@@ -70,9 +70,9 @@ export default function PedidoDetalhePage() {
         } as Pedido;
         
         // Buscar dados do cliente
-        if (pedidoData.clienteId) {
+        if (pedidoData.userId) {
           try {
-            const clienteDoc = await getDoc(doc(db, 'clientes', pedidoData.clienteId));
+            const clienteDoc = await getDoc(doc(db, 'clientes', pedidoData.userId));
             if (clienteDoc.exists()) {
               pedidoData.cliente = {
                 id: clienteDoc.id,
@@ -328,7 +328,7 @@ export default function PedidoDetalhePage() {
                   <p className="text-gray-900">{pedido.cliente.whatsapp}</p>
                 </div>
                 <Link
-                  href={`/clientes/${pedido.clienteId}`}
+                  href={`/clientes/${pedido.userId}`}
                   className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
                 >
                   Ver perfil do cliente →

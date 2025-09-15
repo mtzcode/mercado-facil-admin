@@ -1,8 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { Menu } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Menu, Bell } from 'lucide-react';
 import Sidebar from './Sidebar';
+import UserMenu from './UserMenu';
+import { authService, AuthUser } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -12,6 +15,37 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ children, title, currentPath }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser) {
+          router.push('/login');
+          return;
+        }
+        setUser(currentUser);
+      } catch (error: unknown) {
+      console.error('Erro ao verificar autenticação:', error);
+        router.push('/login');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -30,13 +64,19 @@ export default function AdminLayout({ children, title, currentPath }: AdminLayou
               </button>
               <h2 className="text-xl font-semibold text-gray-800">{title}</h2>
             </div>
-            <div className="text-sm text-gray-600">
-              {new Date().toLocaleDateString('pt-BR', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })}
+            <div className="flex items-center space-x-4">
+              {/* Notificações */}
+              <button className="p-2 rounded-lg hover:bg-gray-100 relative">
+                <Bell size={20} className="text-gray-600" />
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+              </button>
+              
+              {/* Menu do usuário */}
+              <UserMenu user={user ? {
+                name: user.displayName || user.email || 'Usuário',
+                email: user.email || '',
+                avatar: user.photoURL || undefined
+              } : undefined} />
             </div>
           </div>
         </header>

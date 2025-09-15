@@ -10,9 +10,12 @@ import {
   Building2,
   X,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  LogOut
 } from 'lucide-react';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { authService } from '@/lib/auth';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -22,6 +25,16 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose, currentPath = '' }: SidebarProps) => {
   const [empresaMenuOpen, setEmpresaMenuOpen] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+      router.push('/login');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+    }
+  };
 
   const menuItems = [
     {
@@ -170,6 +183,17 @@ const Sidebar = ({ isOpen, onClose, currentPath = '' }: SidebarProps) => {
               )}
             </li>
           </ul>
+          
+          {/* Seção de logout */}
+          <div className="absolute bottom-0 left-0 right-0 p-4 border-t bg-white">
+            <button
+              onClick={handleLogout}
+              className="flex items-center w-full p-3 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
+            >
+              <LogOut size={20} className="mr-3" />
+              Sair
+            </button>
+          </div>
         </nav>
       </div>
     </>

@@ -1,34 +1,34 @@
-import { 
-  collection, 
-  doc, 
-  getDocs, 
-  getDoc, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  orderBy,
   Timestamp,
-  writeBatch
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { 
-  Produto, 
-  Categoria, 
-  Cliente, 
-  Pedido, 
+  writeBatch,
+} from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import {
+  Produto,
+  Categoria,
+  User,
+  Pedido,
   DashboardStats,
   ProdutoForm,
-  CategoriaForm 
-} from '@/types';
+  CategoriaForm,
+} from "@/types";
 
 // Utilitário para converter Timestamp do Firestore para Date
 const timestampToDate = (timestamp: unknown): Date => {
-  if (timestamp && typeof timestamp === 'object' && 'toDate' in timestamp) {
+  if (timestamp && typeof timestamp === "object" && "toDate" in timestamp) {
     return (timestamp as Timestamp).toDate();
   }
-  if (timestamp && typeof timestamp === 'object' && 'seconds' in timestamp) {
+  if (timestamp && typeof timestamp === "object" && "seconds" in timestamp) {
     return new Date((timestamp as { seconds: number }).seconds * 1000);
   }
   return new Date(timestamp as string | number | Date);
@@ -36,14 +36,14 @@ const timestampToDate = (timestamp: unknown): Date => {
 
 const convertTimestamp = (data: Record<string, unknown>) => {
   const converted = { ...data };
-  
+
   // Converter Timestamps do Firestore para Date
-  Object.keys(converted).forEach(key => {
+  Object.keys(converted).forEach((key) => {
     if (converted[key] instanceof Timestamp) {
       converted[key] = (converted[key] as Timestamp).toDate();
     }
   });
-  
+
   return converted;
 };
 
@@ -51,24 +51,24 @@ const convertTimestamp = (data: Record<string, unknown>) => {
 export const produtoService = {
   async getAll(): Promise<Produto[]> {
     const querySnapshot = await getDocs(
-      query(collection(db, 'produtos'), orderBy('nome'))
+      query(collection(db, "produtos"), orderBy("nome"))
     );
-    return querySnapshot.docs.map(doc => {
+    return querySnapshot.docs.map((doc) => {
       const data = doc.data() as Record<string, unknown>;
       return {
         id: doc.id,
-        ...convertTimestamp(data)
+        ...convertTimestamp(data),
       } as Produto;
     });
   },
 
   async getById(id: string): Promise<Produto | null> {
-    const docSnap = await getDoc(doc(db, 'produtos', id));
+    const docSnap = await getDoc(doc(db, "produtos", id));
     if (docSnap.exists()) {
       const data = docSnap.data() as Record<string, unknown>;
       return {
         id: docSnap.id,
-        ...convertTimestamp(data)
+        ...convertTimestamp(data),
       } as Produto;
     }
     return null;
@@ -76,178 +76,175 @@ export const produtoService = {
 
   async create(produto: ProdutoForm): Promise<string> {
     const now = new Date();
-    const docRef = await addDoc(collection(db, 'produtos'), {
+    const docRef = await addDoc(collection(db, "produtos"), {
       ...produto,
       avaliacoes: [],
       dataCriacao: Timestamp.fromDate(now),
-      dataAtualizacao: Timestamp.fromDate(now)
+      dataAtualizacao: Timestamp.fromDate(now),
     });
     return docRef.id;
   },
 
   async update(id: string, produto: Partial<ProdutoForm>): Promise<void> {
-    await updateDoc(doc(db, 'produtos', id), {
+    await updateDoc(doc(db, "produtos", id), {
       ...produto,
-      dataAtualizacao: Timestamp.fromDate(new Date())
+      dataAtualizacao: Timestamp.fromDate(new Date()),
     });
   },
 
   async delete(id: string): Promise<void> {
-    await deleteDoc(doc(db, 'produtos', id));
+    await deleteDoc(doc(db, "produtos", id));
   },
 
   async getByCategoria(categoria: string): Promise<Produto[]> {
     const querySnapshot = await getDocs(
       query(
-        collection(db, 'produtos'),
-        where('categoria', '==', categoria),
-        orderBy('nome')
+        collection(db, "produtos"),
+        where("categoria", "==", categoria),
+        orderBy("nome")
       )
     );
-    return querySnapshot.docs.map(doc => {
+    return querySnapshot.docs.map((doc) => {
       const data = doc.data() as Record<string, unknown>;
       return {
         id: doc.id,
-        ...convertTimestamp(data)
+        ...convertTimestamp(data),
       } as Produto;
     });
-  }
+  },
 };
 
 // Serviços para Categorias
 export const categoriaService = {
   async getAll(): Promise<Categoria[]> {
     const querySnapshot = await getDocs(
-      query(collection(db, 'categorias'), orderBy('ordem'))
+      query(collection(db, "categorias"), orderBy("ordem"))
     );
-    return querySnapshot.docs.map(doc => {
+    return querySnapshot.docs.map((doc) => {
       const data = doc.data() as Record<string, unknown>;
       return {
         id: doc.id,
-        ...convertTimestamp(data)
+        ...convertTimestamp(data),
       } as Categoria;
     });
   },
 
   async create(categoria: CategoriaForm): Promise<string> {
-    const docRef = await addDoc(collection(db, 'categorias'), {
+    const docRef = await addDoc(collection(db, "categorias"), {
       ...categoria,
-      dataCriacao: Timestamp.fromDate(new Date())
+      dataCriacao: Timestamp.fromDate(new Date()),
     });
     return docRef.id;
   },
 
   async update(id: string, categoria: Partial<CategoriaForm>): Promise<void> {
-    await updateDoc(doc(db, 'categorias', id), categoria);
+    await updateDoc(doc(db, "categorias", id), categoria);
   },
 
   async delete(id: string): Promise<void> {
-    await deleteDoc(doc(db, 'categorias', id));
-  }
+    await deleteDoc(doc(db, "categorias", id));
+  },
 };
 
-// Serviços para Usuários
+// Serviços para Usuários (padronizado)
 export const usuarioService = {
-  async getAll(): Promise<Cliente[]> {
+  async getAll(): Promise<User[]> {
     const querySnapshot = await getDocs(
-      query(collection(db, 'clientes'), orderBy('dataCadastro', 'desc'))
+      query(collection(db, "users"), orderBy("dataCadastro", "desc"))
     );
-    return querySnapshot.docs.map(doc => ({
+    return querySnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
       dataCadastro: timestampToDate(doc.data().dataCadastro),
-      ultimoLogin: doc.data().ultimoLogin ? timestampToDate(doc.data().ultimoLogin) : undefined
-    })) as Cliente[];
+      ultimoLogin: doc.data().ultimoLogin
+        ? timestampToDate(doc.data().ultimoLogin)
+        : undefined,
+    })) as User[];
   },
 
-  async getById(id: string): Promise<Cliente | null> {
-    const docSnap = await getDoc(doc(db, 'clientes', id));
+  async getById(id: string): Promise<User | null> {
+    const docSnap = await getDoc(doc(db, "users", id));
     if (docSnap.exists()) {
       const data = docSnap.data();
       return {
         id: docSnap.id,
         ...data,
         dataCadastro: timestampToDate(data.dataCadastro),
-        ultimoLogin: data.ultimoLogin ? timestampToDate(data.ultimoLogin) : undefined
-      } as Cliente;
+        ultimoLogin: data.ultimoLogin
+          ? timestampToDate(data.ultimoLogin)
+          : undefined,
+      } as User;
     }
     return null;
-  }
+  },
 };
 
-// Serviços para Clientes
+// Serviços para Clientes (compatibilidade - usar usuarioService)
 export const clienteService = {
-  async getAll(): Promise<Cliente[]> {
-    const snapshot = await getDocs(
-      query(collection(db, 'clientes'), orderBy('dataCadastro', 'desc'))
-    );
-    return snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...convertTimestamp(doc.data())
-    })) as Cliente[];
+  async getAll(): Promise<User[]> {
+    return usuarioService.getAll();
   },
 
-  async getById(id: string): Promise<Cliente | null> {
-    const docRef = doc(db, 'clientes', id);
-    const docSnap = await getDoc(docRef);
-    
-    if (docSnap.exists()) {
-      return {
-        id: docSnap.id,
-        ...convertTimestamp(docSnap.data())
-      } as Cliente;
-    }
-    return null;
+  async getById(id: string): Promise<User | null> {
+    return usuarioService.getById(id);
   },
 
-  async create(cliente: {
+  async create(user: {
     nome: string;
     email: string;
-    whatsapp: string;
+    telefone: string;
     ativo: boolean;
     cadastroCompleto: boolean;
   }): Promise<string> {
-    const clienteData = {
-      ...cliente,
+    const userData = {
+      ...user,
+      whatsapp: user.telefone, // Compatibilidade
       dataCadastro: Timestamp.now(),
       ultimoLogin: null,
       totalPedidos: 0,
-      totalGasto: 0
+      totalGasto: 0,
     };
-    
-    const docRef = await addDoc(collection(db, 'clientes'), clienteData);
+
+    const docRef = await addDoc(collection(db, "users"), userData);
     return docRef.id;
   },
 
-  async update(id: string, cliente: Partial<{
-    nome: string;
-    email: string;
-    whatsapp: string;
-    ativo: boolean;
-    cadastroCompleto: boolean;
-  }>): Promise<void> {
-    const docRef = doc(db, 'clientes', id);
-    await updateDoc(docRef, {
-      ...cliente,
-      updatedAt: Timestamp.now()
-    });
+  async update(
+    id: string,
+    user: Partial<{
+      nome: string;
+      email: string;
+      telefone: string;
+      ativo: boolean;
+      cadastroCompleto: boolean;
+    }>
+  ): Promise<void> {
+    const docRef = doc(db, "users", id);
+    const updateData = {
+      ...user,
+      whatsapp: user.telefone, // Compatibilidade
+      updatedAt: Timestamp.now(),
+    };
+    await updateDoc(docRef, updateData);
   },
 
   async delete(id: string): Promise<void> {
-    await deleteDoc(doc(db, 'clientes', id));
+    await deleteDoc(doc(db, "users", id));
   },
 
-  async search(searchTerm: string): Promise<Cliente[]> {
-    const snapshot = await getDocs(collection(db, 'clientes'));
-    const clientes = snapshot.docs.map(doc => ({
+  async search(searchTerm: string): Promise<User[]> {
+    const snapshot = await getDocs(collection(db, "users"));
+    const users = snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...convertTimestamp(doc.data())
-    })) as Cliente[];
-    
-    return clientes.filter(cliente =>
-      cliente.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cliente.whatsapp.includes(searchTerm)
+      ...convertTimestamp(doc.data()),
+    })) as User[];
+
+    return users.filter(
+      (user) =>
+        user.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.telefone.includes(searchTerm) ||
+        (user.whatsapp && user.whatsapp.includes(searchTerm))
     );
   },
 
@@ -257,93 +254,142 @@ export const clienteService = {
     cadastrosCompletos: number;
     novos30Dias: number;
   }> {
-    const snapshot = await getDocs(collection(db, 'clientes'));
-    const clientes = snapshot.docs.map(doc => ({
+    const snapshot = await getDocs(collection(db, "users"));
+    const users = snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...convertTimestamp(doc.data())
-    })) as Cliente[];
-    
+      ...convertTimestamp(doc.data()),
+    })) as User[];
+
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+
     return {
-      total: clientes.length,
-      ativos: clientes.filter(c => c.ativo).length,
-      cadastrosCompletos: clientes.filter(c => c.cadastroCompleto).length,
-      novos30Dias: clientes.filter(c => c.dataCadastro >= thirtyDaysAgo).length
+      total: users.length,
+      ativos: users.filter((u) => u.ativo).length,
+      cadastrosCompletos: users.filter((u) => u.cadastroCompleto).length,
+      novos30Dias: users.filter((u) => u.dataCadastro >= thirtyDaysAgo).length,
     };
-  }
+  },
 };
 
-// Serviços para Pedidos
+// Serviços para Pedidos (padronizado com userId)
 export const pedidoService = {
   async getAll(): Promise<Pedido[]> {
     const querySnapshot = await getDocs(
-      query(collection(db, 'pedidos'), orderBy('dataPedido', 'desc'))
+      query(collection(db, "pedidos"), orderBy("dataPedido", "desc"))
     );
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      dataPedido: timestampToDate(doc.data().dataPedido),
-      dataEntrega: doc.data().dataEntrega ? timestampToDate(doc.data().dataEntrega) : undefined
-    })) as Pedido[];
+    return querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        userId: data.userId, // Campo padronizado
+        dataPedido: timestampToDate(data.dataPedido),
+        dataEntrega: data.dataEntrega
+          ? timestampToDate(data.dataEntrega)
+          : undefined,
+      } as Pedido;
+    });
   },
 
   async getByStatus(status: string): Promise<Pedido[]> {
     const querySnapshot = await getDocs(
       query(
-        collection(db, 'pedidos'),
-        where('status', '==', status),
-        orderBy('dataPedido', 'desc')
+        collection(db, "pedidos"),
+        where("status", "==", status),
+        orderBy("dataPedido", "desc")
       )
     );
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      dataPedido: timestampToDate(doc.data().dataPedido),
-      dataEntrega: doc.data().dataEntrega ? timestampToDate(doc.data().dataEntrega) : undefined
-    })) as Pedido[];
+    return querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        userId: data.userId, // Campo padronizado
+        dataPedido: timestampToDate(data.dataPedido),
+        dataEntrega: data.dataEntrega
+          ? timestampToDate(data.dataEntrega)
+          : undefined,
+      } as Pedido;
+    });
+  },
+
+  async getByUserId(userId: string): Promise<Pedido[]> {
+    const querySnapshot = await getDocs(
+      query(
+        collection(db, "pedidos"),
+        where("userId", "==", userId),
+        orderBy("dataPedido", "desc")
+      )
+    );
+    return querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        userId: data.userId, // Campo padronizado
+        dataPedido: timestampToDate(data.dataPedido),
+        dataEntrega: data.dataEntrega
+          ? timestampToDate(data.dataEntrega)
+          : undefined,
+      } as Pedido;
+    });
   },
 
   async updateStatus(id: string, status: string): Promise<void> {
-    await updateDoc(doc(db, 'pedidos', id), { status });
-  }
+    await updateDoc(doc(db, "pedidos", id), {
+      status,
+      updatedAt: Timestamp.now(),
+    });
+  },
+
+  async create(pedido: Omit<Pedido, "id" | "dataPedido">): Promise<string> {
+    const pedidoData = {
+      ...pedido,
+      dataPedido: Timestamp.now(),
+      // Garantir que userId está definido
+      userId: pedido.userId || pedido.clienteId || pedido.usuarioId,
+    };
+
+    const docRef = await addDoc(collection(db, "pedidos"), pedidoData);
+    return docRef.id;
+  },
 };
 
-// Serviços para Dashboard
+// Serviços para Dashboard (atualizado para usar users)
 export const dashboardService = {
   async getStats(): Promise<DashboardStats> {
-    const [clientes, produtos, pedidos] = await Promise.all([
-      getDocs(collection(db, 'clientes')),
-      getDocs(collection(db, 'produtos')),
-      getDocs(collection(db, 'pedidos'))
+    const [users, produtos, pedidos] = await Promise.all([
+      getDocs(collection(db, "users")),
+      getDocs(collection(db, "produtos")),
+      getDocs(collection(db, "pedidos")),
     ]);
 
     const pedidosPendentes = await getDocs(
-      query(collection(db, 'pedidos'), where('status', '==', 'pendente'))
+      query(collection(db, "pedidos"), where("status", "==", "pendente"))
     );
 
     const produtosSemEstoque = await getDocs(
-      query(collection(db, 'produtos'), where('estoque', '<=', 0))
+      query(collection(db, "produtos"), where("estoque", "<=", 0))
     );
 
     const totalVendas = pedidos.docs.reduce((total, doc) => {
       const pedido = doc.data();
-      if (pedido.status !== 'cancelado') {
+      if (pedido.status !== "cancelado") {
         return total + (pedido.total || 0);
       }
       return total;
     }, 0);
 
     return {
-      totalClientes: clientes.size,
+      totalClientes: users.size,
       totalProdutos: produtos.size,
       totalPedidos: pedidos.size,
       totalVendas,
       pedidosPendentes: pedidosPendentes.size,
-      produtosSemEstoque: produtosSemEstoque.size
+      produtosSemEstoque: produtosSemEstoque.size,
     };
-  }
+  },
 };
 
 // Serviços para Notificações
@@ -357,33 +403,33 @@ export const notificacaoService = {
     data?: Record<string, unknown>;
   }): Promise<void> {
     const batch = writeBatch(db);
-    
+
     if (notificacao.sendToAll) {
       // Buscar todos os usuários
-      const usuarios = await getDocs(collection(db, 'usuarios'));
-      
-      usuarios.docs.forEach(userDoc => {
-        const notifRef = doc(collection(db, 'notificacoes'));
+      const usuarios = await getDocs(collection(db, "usuarios"));
+
+      usuarios.docs.forEach((userDoc) => {
+        const notifRef = doc(collection(db, "notificacoes"));
         batch.set(notifRef, {
           ...notificacao,
           userId: userDoc.id,
           timestamp: Timestamp.fromDate(new Date()),
-          read: false
+          read: false,
         });
       });
     } else if (notificacao.targetUsers) {
       // Enviar para usuários específicos
-      notificacao.targetUsers.forEach(userId => {
-        const notifRef = doc(collection(db, 'notificacoes'));
+      notificacao.targetUsers.forEach((userId) => {
+        const notifRef = doc(collection(db, "notificacoes"));
         batch.set(notifRef, {
           ...notificacao,
           userId,
           timestamp: Timestamp.fromDate(new Date()),
-          read: false
+          read: false,
         });
       });
     }
-    
+
     await batch.commit();
-  }
+  },
 };

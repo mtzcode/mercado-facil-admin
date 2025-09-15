@@ -1,24 +1,21 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { getStorage } from 'firebase/storage';
+// Configuração Firebase para o admin
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
-// Configurações do Firebase - mesmo projeto do app mobile
 const firebaseConfig = {
-  apiKey: 'AIzaSyAf3OruYIPCu_AgzAKOdOa_b-gySSEL7RQ',
-  authDomain: 'mercadofacilweb.firebaseapp.com',
-  projectId: 'mercadofacilweb',
-  storageBucket: 'mercadofacilweb.firebasestorage.app',
-  messagingSenderId: '10443024714',
-  appId: '1:10443024714:web:2f25bdbfbc090c14a439b3'
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);
 
-// Inicializar serviços
+// Exportar serviços
 export const db = getFirestore(app);
 export const auth = getAuth(app);
-export const storage = getStorage(app);
-
 export default app;
