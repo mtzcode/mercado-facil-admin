@@ -20,6 +20,7 @@ import {
 import { produtoService } from '@/services/firestore';
 import { Produto } from '@/types';
 import Sidebar from '@/components/Sidebar';
+import { PermissionGuard, usePermission } from '@/hooks/usePermissions';
 
 export default function VisualizarProdutoPage() {
   const router = useRouter();
@@ -28,12 +29,22 @@ export default function VisualizarProdutoPage() {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  
+  // Verificar permissão de leitura
+  const { allowed: canRead, loading: permissionLoading } = usePermission('produtos', 'read');
 
   useEffect(() => {
     if (params.id) {
       loadProduto(params.id as string);
     }
   }, [params.id]);
+
+  // Redirecionar se não tiver permissão
+  useEffect(() => {
+    if (!permissionLoading && !canRead) {
+      router.push('/unauthorized');
+    }
+  }, [permissionLoading, canRead, router]);
 
   const loadProduto = async (id: string) => {
     try {
@@ -79,7 +90,7 @@ export default function VisualizarProdutoPage() {
     return new Intl.DateTimeFormat('pt-BR').format(new Date(date));
   };
 
-  if (loading) {
+  if (loading || permissionLoading) {
     return (
       <div className="flex h-screen bg-gray-50">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} currentPath="/produtos" />
@@ -140,21 +151,25 @@ export default function VisualizarProdutoPage() {
               <h1 className="text-xl font-semibold text-gray-900">Visualizar Produto</h1>
             </div>
             <div className="flex items-center gap-2">
-              <Link
-                href={`/produtos/${produto.id}/editar`}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <Edit size={16} className="mr-2" />
-                Editar
-              </Link>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-              >
-                <Trash2 size={16} className="mr-2" />
-                {deleting ? 'Excluindo...' : 'Excluir'}
-              </button>
+              <PermissionGuard resource="produtos" action="update">
+                <Link
+                  href={`/produtos/${produto.id}/editar`}
+                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  <Edit size={16} className="mr-2" />
+                  Editar
+                </Link>
+              </PermissionGuard>
+              <PermissionGuard resource="produtos" action="delete">
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                >
+                  <Trash2 size={16} className="mr-2" />
+                  {deleting ? 'Excluindo...' : 'Excluir'}
+                </button>
+              </PermissionGuard>
             </div>
           </div>
         </header>

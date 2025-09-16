@@ -42,16 +42,26 @@ export default function ClientesPage() {
   const fetchClientes = async () => {
     try {
       setLoading(true);
-      const clientesRef = collection(db, 'clientes');
-      const q = query(clientesRef, orderBy('dataCadastro', 'desc'));
+      // Acessando a coleção 'users' onde estão os dados reais dos usuários do app cliente
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, orderBy('dataCadastro', 'desc'));
       const snapshot = await getDocs(q);
       
-      const clientesData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        dataCadastro: doc.data().dataCadastro?.toDate() || new Date(),
-        ultimoLogin: doc.data().ultimoLogin?.toDate()
-      })) as Cliente[];
+      const clientesData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          nome: data.nome || '',
+          email: data.email || '',
+          whatsapp: data.telefone || data.whatsapp || '', // Usando telefone como whatsapp
+          dataCadastro: data.dataCadastro?.toDate() || new Date(),
+          ultimoLogin: data.ultimoLogin?.toDate(),
+          cadastroCompleto: data.cadastroCompleto || false,
+          ativo: data.ativo !== false, // Default true se não especificado
+          totalPedidos: data.totalPedidos || 0,
+          totalGasto: data.totalGasto || 0
+        };
+      }) as Cliente[];
       
       setClientes(clientesData);
     } catch (error) {
@@ -64,7 +74,8 @@ export default function ClientesPage() {
   const handleDeleteCliente = async (id: string) => {
     if (confirm('Tem certeza que deseja excluir este cliente?')) {
       try {
-        await deleteDoc(doc(db, 'clientes', id));
+        // Deletando da coleção 'users' onde estão os dados reais
+        await deleteDoc(doc(db, 'users', id));
         setClientes(clientes.filter(cliente => cliente.id !== id));
       } catch (error) {
         console.error('Erro ao excluir cliente:', error);

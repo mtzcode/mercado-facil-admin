@@ -16,6 +16,33 @@ export interface User {
   whatsapp?: string; // Alias para telefone
 }
 
+// ===== ADMINISTRADORES =====
+export interface AdminUser {
+  id: string;
+  nome: string;
+  email: string;
+  telefone?: string;
+  role: 'super_admin' | 'admin' | 'moderador';
+  permissions: AdminPermission[];
+  dataCriacao: Date;
+  ultimoLogin?: Date;
+  ativo: boolean;
+  criadoPor?: string; // ID do admin que criou este usuário
+}
+
+export interface AdminPermission {
+  resource: 'produtos' | 'categorias' | 'clientes' | 'pedidos' | 'usuarios_admin' | 'dashboard' | 'relatorios';
+  actions: ('create' | 'read' | 'update' | 'delete')[];
+}
+
+export interface AdminRole {
+  id: string;
+  nome: string;
+  descricao: string;
+  permissions: AdminPermission[];
+  ativo: boolean;
+}
+
 // Alias para compatibilidade
 export type Cliente = User;
 export type Usuario = User;

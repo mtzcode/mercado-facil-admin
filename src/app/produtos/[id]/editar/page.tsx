@@ -19,6 +19,7 @@ import { produtoService, categoriaService } from '@/services/firestore';
 import { Categoria, ProdutoForm } from '@/types';
 import Sidebar from '@/components/Sidebar';
 import { getProductImageUrl, checkImageExists } from '@/lib/cloudinary';
+import { usePermission } from '@/hooks/usePermissions';
 
 export default function EditarProdutoPage() {
   const router = useRouter();
@@ -29,6 +30,15 @@ export default function EditarProdutoPage() {
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
+  
+  // Verificar permissão de edição
+  const { allowed: hasPermission, loading: permissionLoading } = usePermission('produtos', 'update');
+
+  useEffect(() => {
+    if (!permissionLoading && !hasPermission) {
+      router.push('/unauthorized');
+    }
+  }, [hasPermission, permissionLoading, router]);
   
   // Estados do Cloudinary
   const [cloudinaryImageUrl, setCloudinaryImageUrl] = useState<string | null>(null);
@@ -223,7 +233,7 @@ export default function EditarProdutoPage() {
     }
   };
 
-  if (loading) {
+  if (loading || permissionLoading) {
     return (
       <div className="flex h-screen bg-gray-50">
         <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} currentPath="/produtos" />

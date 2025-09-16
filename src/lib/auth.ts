@@ -8,6 +8,7 @@ import {
   User as FirebaseUser,
 } from "firebase/auth";
 import { auth } from "./firebase";
+import { adminService } from "@/services/firestore";
 
 // Funções para gerenciar cookies
 const setCookie = (name: string, value: string, days: number = 7) => {
@@ -133,11 +134,29 @@ export class AuthService {
         credentials.password
       );
 
+      const user = userCredential.user;
+      
+      // Verificar se é um usuário admin válido no banco de dados
+      const adminUser = await adminService.getByEmail(user.email || "");
+      
+      if (!adminUser) {
+        await signOut(auth);
+        throw new Error("Usuário não autorizado para acessar o painel administrativo");
+      }
+      
+      if (!adminUser.ativo) {
+        await signOut(auth);
+        throw new Error("Conta de administrador desativada");
+      }
+      
+      // Atualizar último login
+      await adminService.updateLastLogin(adminUser.id);
+
       // Salvar token no cookie
-      const token = await userCredential.user.getIdToken();
+      const token = await user.getIdToken();
       setCookie('admin-token', token, 7);
 
-      return this.mapFirebaseUser(userCredential.user);
+      return this.mapFirebaseUser(user);
     } catch (error: unknown) {
       const errorCode = error instanceof Error && 'code' in error ? (error as { code: string }).code : 'unknown';
       this.authState.error = this.getErrorMessage(errorCode);

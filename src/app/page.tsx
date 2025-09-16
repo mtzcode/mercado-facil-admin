@@ -8,11 +8,8 @@ import {
   Users,
   DollarSign,
   TrendingUp,
-  Calendar,
   Bell,
   Activity,
-  ChevronDown,
-  X,
   LucideIcon
 } from 'lucide-react';
 import { dashboardService } from '@/services/firestore';
@@ -54,42 +51,13 @@ const StatCard = ({ title, value, icon: Icon, color, trend }: {
   );
 };
 
-type DateFilter = 'today' | 'yesterday' | 'week' | 'month' | 'range';
 
-const getDateLabel = (filter: DateFilter, customDate?: string, startDate?: string, endDate?: string): string => {
-  switch (filter) {
-    case 'today':
-      return 'Hoje';
-    case 'yesterday':
-      return 'Ontem';
-    case 'week':
-      return 'Esta Semana';
-    case 'month':
-      return 'Este Mês';
-    case 'range':
-      if (startDate && endDate) {
-        // Formatar as datas diretamente sem conversão para evitar problemas de fuso horário
-        const formatDate = (dateStr: string) => {
-          const [year, month, day] = dateStr.split('-');
-          return `${day}/${month}/${year}`;
-        };
-        return `${formatDate(startDate)} - ${formatDate(endDate)}`;
-      }
-      return 'Período Customizado';
-    default:
-      return 'Hoje';
-  }
-};
 
 export default function Dashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-  const [dateFilter, setDateFilter] = useState<DateFilter>('today');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
-  const [showRangePicker, setShowRangePicker] = useState(false);
+
   const [recentActivities, setRecentActivities] = useState<Array<{
     id: string;
     type: 'pedido' | 'cliente' | 'produto';
@@ -156,10 +124,15 @@ export default function Dashboard() {
     const fetchData = async () => {
       setLoading(true);
       try {
+        const { startDate, endDate } = getDateRange();
+        console.log('Dashboard - Buscando dados com período:', { startDate, endDate });
+        
         const [statsData, activitiesData] = await Promise.all([
-          dashboardService.getDashboardStats(dateFilter, undefined, startDate, endDate),
+          dashboardService.getDashboardStats('custom', undefined, startDate.toISOString(), endDate.toISOString()),
           dashboardService.getRecentActivities()
         ]);
+        
+        console.log('Dashboard - Dados recebidos:', { statsData, activitiesData });
         setStats(statsData);
         setRecentActivities(activitiesData);
       } catch (error) {
@@ -170,7 +143,7 @@ export default function Dashboard() {
     };
 
     fetchData();
-  }, [dateFilter, startDate, endDate]);
+  }, [getDateRange]);
 
   const loadChartsData = useCallback(async (showRefreshIndicator = false) => {
     try {
@@ -180,7 +153,7 @@ export default function Dashboard() {
         setChartsLoading(true);
       }
       
-      const { startDate, endDate } = getDateRange;
+      const { startDate, endDate } = getDateRange();
       
       // Carregar dados dos gráficos em paralelo com filtro de período
       const [salesData, categoryData, monthlyData] = await Promise.all([
@@ -202,7 +175,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadChartsData();
-  }, [selectedPeriod]);
+  }, [selectedPeriod, loadChartsData]);
   
   // Funções de exportação
   const handleExportSalesCSV = () => {
@@ -276,100 +249,7 @@ export default function Dashboard() {
               onRefresh={handleRefreshData}
               isLoading={refreshing}
             />
-            <div className="flex items-center space-x-2">
-              <div className="relative">
-                <button 
-                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  {getDateLabel(dateFilter, undefined, startDate, endDate)}
-                  <ChevronDown className="w-4 h-4 ml-2" />
-                </button>
-              
-              {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                  <div className="py-1">
-                    {(['today', 'yesterday', 'week', 'month'] as DateFilter[]).map((filter) => (
-                      <button
-                        key={filter}
-                        onClick={() => {
-                          setDateFilter(filter);
-                          setIsDropdownOpen(false);
-                          setShowRangePicker(false);
-                        }}
-                        className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
-                          dateFilter === filter ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
-                        }`}
-                      >
-                        {getDateLabel(filter)}
-                      </button>
-                    ))}
-                    <hr className="my-1" />
-                    <button
-                      onClick={() => {
-                          setDateFilter('range');
-                          setShowRangePicker(!showRangePicker);
-                        }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 transition-colors ${
-                        dateFilter === 'range' ? 'bg-blue-50 text-blue-600' : 'text-gray-700'
-                      }`}
-                    >
-                      Período Customizado
-                    </button>
-                    {showRangePicker && (
-                      <div className="px-4 py-2 border-t">
-                        <div className="mb-2">
-                          <label className="block text-sm font-medium mb-1">Data de Início:</label>
-                          <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                        <div className="mb-2">
-                          <label className="block text-sm font-medium mb-1">Data de Fim:</label>
-                          <input
-                            type="date"
-                            value={endDate}
-                            onChange={(e) => setEndDate(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          />
-                        </div>
-                        <button
-                          onClick={() => {
-                            if (startDate && endDate) {
-                              setDateFilter('range');
-                              setIsDropdownOpen(false);
-                              setShowRangePicker(false);
-                            }
-                          }}
-                          className="w-full mt-2 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
-                        >
-                          Aplicar Período
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              </div>
-              <button 
-                onClick={() => {
-                  setDateFilter('today');
-                  setStartDate('');
-                  setEndDate('');
-                  setShowRangePicker(false);
-                  setIsDropdownOpen(false);
-                }}
-                className="flex items-center px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                title="Limpar Filtro"
-              >
-                <X className="w-4 h-4 mr-1" />
-                Limpar
-              </button>
-            </div>
+
             <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
               <Bell className="w-5 h-5" />
             </button>

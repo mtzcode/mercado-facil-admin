@@ -21,7 +21,41 @@ import {
   DashboardStats,
   ProdutoForm,
   CategoriaForm,
+  AdminUser,
+
+  AdminRole,
 } from "@/types";
+
+// Interfaces para dados do Firestore
+interface FirestorePedido {
+  id: string;
+  total: number;
+  userId: string;
+  dataPedido: Timestamp;
+  status: string;
+  itens: Array<{
+    produtoId: string;
+    quantidade: number;
+    preco: number;
+  }>;
+}
+
+interface FirestoreCliente {
+  id: string;
+  nome: string;
+  email: string;
+  dataCadastro: Timestamp;
+}
+
+interface FirestoreProduto {
+  id: string;
+  nome: string;
+  categoria: string;
+  estoque: number;
+  estoqueMinimo: number;
+  preco: number;
+  ativo: boolean;
+}
 
 // Utilitário para converter Timestamp do Firestore para Date
 const timestampToDate = (timestamp: unknown): Date => {
@@ -903,7 +937,340 @@ export const dashboardService = {
 
   // Manter método antigo para compatibilidade
   async getStats(): Promise<DashboardStats> {
-    return this.getDashboardStats('today');
+    return this.getDashboardStats();
+  },
+
+  // Métricas Avançadas para Relatórios
+  async getTicketMedio(startDate?: Date, endDate?: Date): Promise<{
+    valor: number;
+    tendencia: { valor: number; positiva: boolean };
+  }> {
+    try {
+      const { start, end } = startDate && endDate ? 
+        { start: startDate, end: endDate } : 
+        getDateRange('month');
+      
+      const pedidosQuery = query(
+        collection(db, 'pedidos'),
+        where('dataPedido', '>=', start),
+        where('dataPedido', '<=', end),
+        where('status', '!=', 'cancelado')
+      );
+      
+      const pedidosSnapshot = await getDocs(pedidosQuery);
+      const pedidos = pedidosSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as FirestorePedido[];
+      
+      const totalVendas = pedidos.reduce((sum, pedido) => sum + (pedido.total || 0), 0);
+      const ticketMedio = pedidos.length > 0 ? totalVendas / pedidos.length : 0;
+      
+      // Calcular período anterior para tendência
+      const { start: prevStart, end: prevEnd } = getPreviousDateRange('month');
+      const prevPedidosQuery = query(
+        collection(db, 'pedidos'),
+        where('dataPedido', '>=', prevStart),
+        where('dataPedido', '<=', prevEnd),
+        where('status', '!=', 'cancelado')
+      );
+      
+      const prevPedidosSnapshot = await getDocs(prevPedidosQuery);
+      const prevPedidos = prevPedidosSnapshot.docs.map(doc => doc.data()) as FirestorePedido[];
+      const prevTotalVendas = prevPedidos.reduce((sum, pedido) => sum + (pedido.total || 0), 0);
+      const prevTicketMedio = prevPedidos.length > 0 ? prevTotalVendas / prevPedidos.length : 0;
+      
+      const tendenciaValor = prevTicketMedio > 0 ? 
+        ((ticketMedio - prevTicketMedio) / prevTicketMedio) * 100 : 0;
+      
+      return {
+        valor: ticketMedio,
+        tendencia: {
+          valor: Math.abs(tendenciaValor),
+          positiva: tendenciaValor >= 0
+        }
+      };
+    } catch (error) {
+      console.error('Erro ao calcular ticket médio:', error);
+      return { valor: 0, tendencia: { valor: 0, positiva: true } };
+    }
+  },
+
+  async getTaxaConversao(startDate?: Date, endDate?: Date): Promise<{
+    taxa: number;
+    tendencia: { valor: number; positiva: boolean };
+    visitantes: number;
+    compradores: number;
+  }> {
+    try {
+      const { start, end } = startDate && endDate ? 
+        { start: startDate, end: endDate } : 
+        getDateRange('month');
+      
+      // Simular dados de visitantes (em produção, viria do Google Analytics ou similar)
+      const visitantesSimulados = 1500;
+      
+      const pedidosQuery = query(
+        collection(db, 'pedidos'),
+        where('dataPedido', '>=', start),
+        where('dataPedido', '<=', end),
+        where('status', '!=', 'cancelado')
+      );
+      
+      const pedidosSnapshot = await getDocs(pedidosQuery);
+      const compradores = new Set(pedidosSnapshot.docs.map(doc => (doc.data() as FirestorePedido).userId)).size;
+      
+      const taxa = visitantesSimulados > 0 ? (compradores / visitantesSimulados) * 100 : 0;
+      
+      // Calcular período anterior
+      const { start: prevStart, end: prevEnd } = getPreviousDateRange('month');
+      const prevPedidosQuery = query(
+        collection(db, 'pedidos'),
+        where('dataPedido', '>=', prevStart),
+        where('dataPedido', '<=', prevEnd),
+        where('status', '!=', 'cancelado')
+      );
+      
+      const prevPedidosSnapshot = await getDocs(prevPedidosQuery);
+      const prevCompradores = new Set(prevPedidosSnapshot.docs.map(doc => (doc.data() as FirestorePedido).userId)).size;
+      const prevVisitantes = 1200; // Simulado
+      const prevTaxa = prevVisitantes > 0 ? (prevCompradores / prevVisitantes) * 100 : 0;
+      
+      const tendenciaValor = prevTaxa > 0 ? ((taxa - prevTaxa) / prevTaxa) * 100 : 0;
+      
+      return {
+        taxa,
+        tendencia: {
+          valor: Math.abs(tendenciaValor),
+          positiva: tendenciaValor >= 0
+        },
+        visitantes: visitantesSimulados,
+        compradores
+      };
+    } catch (error) {
+      console.error('Erro ao calcular taxa de conversão:', error);
+      return { taxa: 0, tendencia: { valor: 0, positiva: true }, visitantes: 0, compradores: 0 };
+    }
+  },
+
+  async getProdutosBaixoEstoque(limite: number = 20): Promise<Array<{
+    id: string;
+    nome: string;
+    estoque: number;
+    estoqueMinimo: number;
+    categoria: string;
+    status: 'critico' | 'baixo' | 'alerta';
+  }>> {
+    try {
+      const produtosSnapshot = await getDocs(collection(db, 'produtos'));
+      const produtos = produtosSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as FirestoreProduto[];
+      
+      const produtosBaixoEstoque = produtos
+        .filter(produto => {
+          const estoque = produto.estoque || 0;
+          const minimo = produto.estoqueMinimo || 10;
+          return estoque <= minimo;
+        })
+        .map(produto => {
+          const estoque = produto.estoque || 0;
+          const minimo = produto.estoqueMinimo || 10;
+          let status: 'critico' | 'baixo' | 'alerta';
+          
+          if (estoque === 0) {
+            status = 'critico';
+          } else if (estoque <= minimo * 0.3) {
+            status = 'critico';
+          } else if (estoque <= minimo * 0.6) {
+            status = 'baixo';
+          } else {
+            status = 'alerta';
+          }
+          
+          return {
+            id: produto.id,
+            nome: produto.nome || 'Produto sem nome',
+            estoque,
+            estoqueMinimo: minimo,
+            categoria: produto.categoria || 'Sem categoria',
+            status
+          };
+        })
+        .sort((a, b) => {
+          // Ordenar por criticidade e depois por estoque
+          const statusOrder = { critico: 0, baixo: 1, alerta: 2 };
+          if (statusOrder[a.status] !== statusOrder[b.status]) {
+            return statusOrder[a.status] - statusOrder[b.status];
+          }
+          return a.estoque - b.estoque;
+        })
+        .slice(0, limite);
+      
+      return produtosBaixoEstoque;
+    } catch (error) {
+      console.error('Erro ao buscar produtos em baixo estoque:', error);
+      return [];
+    }
+  },
+
+  async getClientesInativos(diasInatividade: number = 30): Promise<Array<{
+    id: string;
+    nome: string;
+    email: string;
+    ultimaCompra: Date;
+    diasInativo: number;
+    totalCompras: number;
+    valorTotalGasto: number;
+  }>> {
+    try {
+      const dataLimite = new Date();
+      dataLimite.setDate(dataLimite.getDate() - diasInatividade);
+      
+      // Buscar todos os clientes
+      const clientesSnapshot = await getDocs(
+        query(collection(db, 'usuarios'), where('tipo', '==', 'cliente'))
+      );
+      
+      const clientesInativos = [];
+      
+      for (const clienteDoc of clientesSnapshot.docs) {
+        const cliente = { id: clienteDoc.id, ...clienteDoc.data() } as FirestoreCliente;
+        
+        // Buscar último pedido do cliente
+        const ultimoPedidoQuery = query(
+          collection(db, 'pedidos'),
+          where('userId', '==', cliente.id),
+          where('status', '!=', 'cancelado'),
+          orderBy('dataPedido', 'desc')
+        );
+        
+        const ultimoPedidoSnapshot = await getDocs(ultimoPedidoQuery);
+        
+        if (ultimoPedidoSnapshot.empty) {
+          // Cliente nunca fez pedido
+          continue;
+        }
+        
+        const ultimoPedido = ultimoPedidoSnapshot.docs[0].data() as FirestorePedido;
+       const ultimaCompra = timestampToDate(ultimoPedido.dataPedido);
+        
+        if (ultimaCompra < dataLimite) {
+          // Calcular estatísticas do cliente
+          const todosPedidosQuery = query(
+            collection(db, 'pedidos'),
+            where('userId', '==', cliente.id),
+            where('status', '!=', 'cancelado')
+          );
+          
+          const todosPedidosSnapshot = await getDocs(todosPedidosQuery);
+        const pedidos = todosPedidosSnapshot.docs.map(doc => doc.data()) as FirestorePedido[];
+          
+          const totalCompras = pedidos.length;
+          const valorTotalGasto = pedidos.reduce((sum, pedido) => sum + (pedido.total || 0), 0);
+          const diasInativo = Math.floor((new Date().getTime() - ultimaCompra.getTime()) / (1000 * 60 * 60 * 24));
+          
+          clientesInativos.push({
+            id: cliente.id,
+            nome: cliente.nome || 'Cliente sem nome',
+            email: cliente.email || 'Email não informado',
+            ultimaCompra,
+            diasInativo,
+            totalCompras,
+            valorTotalGasto
+          });
+        }
+      }
+      
+      // Ordenar por valor total gasto (clientes mais valiosos primeiro)
+      return clientesInativos
+        .sort((a, b) => b.valorTotalGasto - a.valorTotalGasto)
+        .slice(0, 50); // Limitar a 50 clientes
+    } catch (error) {
+      console.error('Erro ao buscar clientes inativos:', error);
+      return [];
+    }
+  },
+
+  async getReceitaPorCategoria(startDate?: Date, endDate?: Date): Promise<Array<{
+    categoria: string;
+    receita: number;
+    percentual: number;
+    pedidos: number;
+    produtosVendidos: number;
+  }>> {
+    try {
+      const { start, end } = startDate && endDate ? 
+        { start: startDate, end: endDate } : 
+        getDateRange('month');
+      
+      const pedidosQuery = query(
+        collection(db, 'pedidos'),
+        where('dataPedido', '>=', start),
+        where('dataPedido', '<=', end),
+        where('status', '!=', 'cancelado')
+      );
+      
+      const pedidosSnapshot = await getDocs(pedidosQuery);
+      const pedidos = pedidosSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as FirestorePedido[];
+      
+      // Buscar produtos para mapear categorias
+      const produtosSnapshot = await getDocs(collection(db, 'produtos'));
+      const produtosMap = new Map();
+      produtosSnapshot.docs.forEach(doc => {
+        const produto = doc.data() as FirestoreProduto;
+        produtosMap.set(doc.id, produto.categoria || 'Sem categoria');
+      });
+      
+      // Agrupar por categoria
+      const categoriaStats = new Map();
+      let receitaTotal = 0;
+      
+      pedidos.forEach(pedido => {
+        const itens = pedido.itens || [];
+        
+        itens.forEach((item: { produtoId: string; quantidade: number; preco: number }) => {
+          const categoria = produtosMap.get(item.produtoId) || 'Sem categoria';
+          const receita = (item.preco || 0) * (item.quantidade || 0);
+          
+          if (!categoriaStats.has(categoria)) {
+            categoriaStats.set(categoria, {
+              categoria,
+              receita: 0,
+              pedidos: new Set(),
+              produtosVendidos: 0
+            });
+          }
+          
+          const stats = categoriaStats.get(categoria);
+          stats.receita += receita;
+          stats.pedidos.add(pedido.id);
+          stats.produtosVendidos += item.quantidade || 0;
+          
+          receitaTotal += receita;
+        });
+      });
+      
+      // Converter para array e calcular percentuais
+      const resultado = Array.from(categoriaStats.values())
+        .map(stats => ({
+          categoria: stats.categoria,
+          receita: stats.receita,
+          percentual: receitaTotal > 0 ? (stats.receita / receitaTotal) * 100 : 0,
+          pedidos: stats.pedidos.size,
+          produtosVendidos: stats.produtosVendidos
+        }))
+        .sort((a, b) => b.receita - a.receita);
+      
+      return resultado;
+    } catch (error) {
+      console.error('Erro ao calcular receita por categoria:', error);
+      return [];
+    }
   },
 };
 
@@ -946,5 +1313,121 @@ export const notificacaoService = {
     }
 
     await batch.commit();
+  },
+};
+
+// Serviços para Administradores
+export const adminService = {
+  async getAll(): Promise<AdminUser[]> {
+    const querySnapshot = await getDocs(
+      query(collection(db, "admin_users"), orderBy("dataCriacao", "desc"))
+    );
+    return querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+      dataCriacao: timestampToDate(doc.data().dataCriacao),
+      ultimoLogin: doc.data().ultimoLogin
+        ? timestampToDate(doc.data().ultimoLogin)
+        : undefined,
+    })) as AdminUser[];
+  },
+
+  async getById(id: string): Promise<AdminUser | null> {
+    const docRef = doc(db, "admin_users", id);
+    const docSnap = await getDoc(docRef);
+    
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        ...data,
+        dataCriacao: timestampToDate(data.dataCriacao),
+        ultimoLogin: data.ultimoLogin
+          ? timestampToDate(data.ultimoLogin)
+          : undefined,
+      } as AdminUser;
+    }
+    return null;
+  },
+
+  async getByEmail(email: string): Promise<AdminUser | null> {
+    const q = query(
+      collection(db, "admin_users"),
+      where("email", "==", email),
+      where("ativo", "==", true)
+    );
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+      const doc = querySnapshot.docs[0];
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        dataCriacao: timestampToDate(data.dataCriacao),
+        ultimoLogin: data.ultimoLogin
+          ? timestampToDate(data.ultimoLogin)
+          : undefined,
+      } as AdminUser;
+    }
+    return null;
+  },
+
+  async create(adminUser: Omit<AdminUser, "id" | "dataCriacao">): Promise<string> {
+    const adminData = {
+      ...adminUser,
+      dataCriacao: Timestamp.now(),
+      ultimoLogin: null,
+    };
+
+    const docRef = await addDoc(collection(db, "admin_users"), adminData);
+    return docRef.id;
+  },
+
+  async update(id: string, adminUser: Partial<Omit<AdminUser, "id" | "dataCriacao">>): Promise<void> {
+    const docRef = doc(db, "admin_users", id);
+    const updateData = {
+      ...adminUser,
+      updatedAt: Timestamp.now(),
+    };
+    await updateDoc(docRef, updateData);
+  },
+
+  async updateLastLogin(id: string): Promise<void> {
+    const docRef = doc(db, "admin_users", id);
+    await updateDoc(docRef, {
+      ultimoLogin: Timestamp.now(),
+    });
+  },
+
+  async delete(id: string): Promise<void> {
+    await updateDoc(doc(db, "admin_users", id), {
+      ativo: false,
+      deletedAt: Timestamp.now(),
+    });
+  },
+
+  async hasPermission(adminId: string, resource: string, action: string): Promise<boolean> {
+    const admin = await this.getById(adminId);
+    if (!admin || !admin.ativo) return false;
+
+    // Super admin tem todas as permissões
+    if (admin.role === 'super_admin') return true;
+
+    // Verificar permissões específicas
+    return admin.permissions.some(permission => 
+      permission.resource === resource && 
+      permission.actions.includes(action as 'create' | 'read' | 'update' | 'delete')
+    );
+  },
+
+  async getRoles(): Promise<AdminRole[]> {
+    const querySnapshot = await getDocs(
+      query(collection(db, "admin_roles"), where("ativo", "==", true))
+    );
+    return querySnapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    })) as AdminRole[];
   },
 };

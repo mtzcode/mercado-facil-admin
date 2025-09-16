@@ -11,7 +11,8 @@ import {
   X,
   ChevronDown,
   ChevronRight,
-  LogOut
+  LogOut,
+  BarChart3
 } from 'lucide-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -25,6 +26,7 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose, currentPath = '' }: SidebarProps) => {
   const [empresaMenuOpen, setEmpresaMenuOpen] = useState(false);
+  const [relatoriosMenuOpen, setRelatoriosMenuOpen] = useState(false);
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -66,7 +68,8 @@ const Sidebar = ({ isOpen, onClose, currentPath = '' }: SidebarProps) => {
       icon: ShoppingCart,
       label: 'Pedidos',
       active: currentPath.startsWith('/pedidos')
-    }
+    },
+    // Relatórios será tratado como submenu separadamente
   ];
 
   const empresaSubmenus = [
@@ -89,6 +92,29 @@ const Sidebar = ({ isOpen, onClose, currentPath = '' }: SidebarProps) => {
     {
       href: '/minha-empresa/entrega',
       label: 'Configurações de Entrega'
+    },
+    {
+      href: '/minha-empresa/usuarios',
+      label: 'Usuários'
+    }
+  ];
+
+  const relatoriosSubmenus = [
+    {
+      href: '/relatorios',
+      label: 'Visão Geral'
+    },
+    {
+      href: '/relatorios/vendas',
+      label: 'Relatórios de Vendas'
+    },
+    {
+      href: '/relatorios/produtos',
+      label: 'Relatórios de Produtos'
+    },
+    {
+      href: '/relatorios/clientes',
+      label: 'Relatórios de Clientes'
     }
   ];
 
@@ -166,6 +192,47 @@ const Sidebar = ({ isOpen, onClose, currentPath = '' }: SidebarProps) => {
               {empresaMenuOpen && (
                 <ul className="mt-2 ml-6 space-y-1">
                   {empresaSubmenus.map((submenu) => (
+                    <li key={submenu.href}>
+                      <Link
+                        href={submenu.href}
+                        className={`block p-2 text-sm rounded-md transition-colors ${
+                          currentPath === submenu.href
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'hover:bg-gray-50 text-gray-600'
+                        }`}
+                      >
+                        {submenu.label}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+
+            {/* Menu Relatórios com submenus */}
+            <li>
+              <button
+                onClick={() => setRelatoriosMenuOpen(!relatoriosMenuOpen)}
+                className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                  currentPath.startsWith('/relatorios')
+                    ? 'bg-blue-50 text-blue-700'
+                    : 'hover:bg-gray-50 text-gray-700'
+                }`}
+              >
+                <div className="flex items-center">
+                  <BarChart3 size={20} className="mr-3" />
+                  Relatórios
+                </div>
+                {relatoriosMenuOpen ? (
+                  <ChevronDown size={16} />
+                ) : (
+                  <ChevronRight size={16} />
+                )}
+              </button>
+              
+              {relatoriosMenuOpen && (
+                <ul className="mt-2 ml-6 space-y-1">
+                  {relatoriosSubmenus.map((submenu) => (
                     <li key={submenu.href}>
                       <Link
                         href={submenu.href}

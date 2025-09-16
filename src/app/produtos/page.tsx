@@ -17,6 +17,7 @@ import { produtoService, categoriaService } from '@/services/firestore';
 import { Produto, Categoria } from '@/types';
 import Sidebar from '@/components/Sidebar';
 import { getProductImageUrl } from '@/lib/cloudinary';
+import { PermissionGuard } from '@/hooks/usePermissions';
 
 export default function ProdutosPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -98,13 +99,15 @@ export default function ProdutosPage() {
               </button>
               <h2 className="text-xl font-semibold text-gray-800">Produtos</h2>
             </div>
-            <Link
-              href="/produtos/novo"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            >
-              <Plus size={20} />
-              Novo Produto
-            </Link>
+            <PermissionGuard resource="produtos" action="create">
+              <Link
+                href="/produtos/novo"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              >
+                <Plus size={20} />
+                Novo Produto
+              </Link>
+            </PermissionGuard>
           </div>
         </header>
 
@@ -292,27 +295,33 @@ export default function ProdutosPage() {
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <div className="flex items-center justify-end gap-2">
-                              <Link
-                                href={`/produtos/${produto.id}`}
-                                className="text-blue-600 hover:text-blue-900 p-1 rounded"
-                                title="Visualizar"
-                              >
-                                <Eye size={16} />
-                              </Link>
-                              <Link
-                                href={`/produtos/${produto.id}/editar`}
-                                className="text-green-600 hover:text-green-900 p-1 rounded"
-                                title="Editar"
-                              >
-                                <Edit size={16} />
-                              </Link>
-                              <button
-                                onClick={() => handleDelete(produto.id!)}
-                                className="text-red-600 hover:text-red-900 p-1 rounded"
-                                title="Excluir"
-                              >
-                                <Trash2 size={16} />
-                              </button>
+                              <PermissionGuard resource="produtos" action="read">
+                                <Link
+                                  href={`/produtos/${produto.id}`}
+                                  className="text-blue-600 hover:text-blue-900 p-1 rounded"
+                                  title="Visualizar"
+                                >
+                                  <Eye size={16} />
+                                </Link>
+                              </PermissionGuard>
+                              <PermissionGuard resource="produtos" action="update">
+                                <Link
+                                  href={`/produtos/${produto.id}/editar`}
+                                  className="text-green-600 hover:text-green-900 p-1 rounded"
+                                  title="Editar"
+                                >
+                                  <Edit size={16} />
+                                </Link>
+                              </PermissionGuard>
+                              <PermissionGuard resource="produtos" action="delete">
+                                <button
+                                  onClick={() => handleDelete(produto.id!)}
+                                  className="text-red-600 hover:text-red-900 p-1 rounded"
+                                  title="Excluir"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </PermissionGuard>
                             </div>
                           </td>
                         </tr>

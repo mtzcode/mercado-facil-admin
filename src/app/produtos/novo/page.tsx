@@ -15,10 +15,18 @@ import { produtoService, categoriaService } from '@/services/firestore';
 import { Categoria, ProdutoForm } from '@/types';
 import Sidebar from '@/components/Sidebar';
 import { getProductImageUrl, checkImageExists } from '@/lib/cloudinary';
+import { usePermission } from '@/hooks/usePermissions';
 
 export default function NovoProdutoPage() {
   const router = useRouter();
+  const { allowed: hasPermission, loading: permissionLoading } = usePermission('produtos', 'create');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    if (!permissionLoading && !hasPermission) {
+      router.push('/unauthorized');
+    }
+  }, [hasPermission, permissionLoading, router]);
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<ProdutoForm>({
@@ -606,10 +614,10 @@ export default function NovoProdutoPage() {
                 </Link>
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || permissionLoading}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? 'Salvando...' : 'Salvar Produto'}
+                  {loading ? 'Salvando...' : permissionLoading ? 'Verificando permissões...' : 'Salvar Produto'}
                 </button>
               </div>
             </form>

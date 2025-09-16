@@ -14,6 +14,15 @@ interface ClienteForm {
   whatsapp: string;
   ativo: boolean;
   cadastroCompleto: boolean;
+  endereco: {
+    cep: string;
+    logradouro: string;
+    numero: string;
+    bairro: string;
+    complemento: string;
+    cidade: string;
+    estado: string;
+  };
 }
 
 export default function EditarClientePage() {
@@ -28,7 +37,16 @@ export default function EditarClientePage() {
     email: '',
     whatsapp: '',
     ativo: true,
-    cadastroCompleto: false
+    cadastroCompleto: false,
+    endereco: {
+      cep: '',
+      logradouro: '',
+      numero: '',
+      bairro: '',
+      complemento: '',
+      cidade: '',
+      estado: ''
+    }
   });
 
   const fetchCliente = useCallback(async () => {
@@ -36,7 +54,7 @@ export default function EditarClientePage() {
     
     try {
       setLoadingData(true);
-      const clienteDoc = await getDoc(doc(db, 'clientes', clienteId));
+      const clienteDoc = await getDoc(doc(db, 'users', clienteId));
       
       if (clienteDoc.exists()) {
         const clienteData = clienteDoc.data();
@@ -45,7 +63,16 @@ export default function EditarClientePage() {
           email: clienteData.email || '',
           whatsapp: clienteData.whatsapp || '',
           ativo: clienteData.ativo ?? true,
-          cadastroCompleto: clienteData.cadastroCompleto ?? false
+          cadastroCompleto: clienteData.cadastroCompleto ?? false,
+          endereco: {
+            cep: clienteData.endereco?.cep || '',
+            logradouro: clienteData.endereco?.logradouro || '',
+            numero: clienteData.endereco?.numero || '',
+            bairro: clienteData.endereco?.bairro || '',
+            complemento: clienteData.endereco?.complemento || '',
+            cidade: clienteData.endereco?.cidade || '',
+            estado: clienteData.endereco?.estado || ''
+          }
         });
       } else {
         alert('Cliente não encontrado');
@@ -71,6 +98,62 @@ export default function EditarClientePage() {
     }));
   };
 
+  const handleEnderecoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      endereco: {
+        ...prev.endereco,
+        [name]: value
+      }
+    }));
+
+    // Buscar endereço automaticamente quando CEP for preenchido
+    if (name === 'cep' && value.replace(/\D/g, '').length === 8) {
+      buscarEnderecoPorCEP(value.replace(/\D/g, ''));
+    }
+  };
+
+  const buscarEnderecoPorCEP = async (cep: string) => {
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      
+      if (!data.erro) {
+        setFormData(prev => ({
+          ...prev,
+          endereco: {
+            ...prev.endereco,
+            logradouro: data.logradouro || '',
+            bairro: data.bairro || '',
+            cidade: data.localidade || '',
+            estado: data.uf || ''
+          }
+        }));
+      }
+    } catch (error) {
+      console.error('Erro ao buscar CEP:', error);
+    }
+  };
+
+  const formatCEP = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    return numbers.replace(/(\d{5})(\d{3})/, '$1-$2');
+  };
+
+  const handleCEPChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatCEP(e.target.value);
+    const event = {
+      ...e,
+      target: {
+        ...e.target,
+        name: 'cep',
+        value: formatted
+      }
+    };
+    handleEnderecoChange(event);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -82,12 +165,15 @@ export default function EditarClientePage() {
     try {
       setLoading(true);
       
-      await updateDoc(doc(db, 'clientes', clienteId), {
+      await updateDoc(doc(db, 'users', clienteId), {
         nome: formData.nome,
         email: formData.email,
+        telefone: formData.whatsapp,
         whatsapp: formData.whatsapp,
         ativo: formData.ativo,
         cadastroCompleto: formData.cadastroCompleto,
+        endereco: formData.endereco,
+        enderecos: [formData.endereco],
         updatedAt: new Date()
       });
       
@@ -195,6 +281,127 @@ export default function EditarClientePage() {
                 placeholder="(11) 99999-9999"
                 maxLength={15}
               />
+            </div>
+
+            {/* Seção de Endereço */}
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Endereço</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* CEP */}
+                <div>
+                  <label htmlFor="cep" className="block text-sm font-medium text-gray-700 mb-2">
+                    CEP
+                  </label>
+                  <input
+                    type="text"
+                    id="cep"
+                    name="cep"
+                    value={formData.endereco.cep}
+                    onChange={handleCEPChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="00000-000"
+                    maxLength={9}
+                  />
+                </div>
+
+                {/* Logradouro */}
+                <div>
+                  <label htmlFor="logradouro" className="block text-sm font-medium text-gray-700 mb-2">
+                    Logradouro
+                  </label>
+                  <input
+                    type="text"
+                    id="logradouro"
+                    name="logradouro"
+                    value={formData.endereco.logradouro}
+                    onChange={handleEnderecoChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Rua, Avenida, etc."
+                  />
+                </div>
+
+                {/* Número */}
+                <div>
+                  <label htmlFor="numero" className="block text-sm font-medium text-gray-700 mb-2">
+                    Número
+                  </label>
+                  <input
+                    type="text"
+                    id="numero"
+                    name="numero"
+                    value={formData.endereco.numero}
+                    onChange={handleEnderecoChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="123"
+                  />
+                </div>
+
+                {/* Bairro */}
+                <div>
+                  <label htmlFor="bairro" className="block text-sm font-medium text-gray-700 mb-2">
+                    Bairro
+                  </label>
+                  <input
+                    type="text"
+                    id="bairro"
+                    name="bairro"
+                    value={formData.endereco.bairro}
+                    onChange={handleEnderecoChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nome do bairro"
+                  />
+                </div>
+
+                {/* Complemento */}
+                <div>
+                  <label htmlFor="complemento" className="block text-sm font-medium text-gray-700 mb-2">
+                    Complemento
+                  </label>
+                  <input
+                    type="text"
+                    id="complemento"
+                    name="complemento"
+                    value={formData.endereco.complemento}
+                    onChange={handleEnderecoChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Apto, Bloco, etc. (opcional)"
+                  />
+                </div>
+
+                {/* Cidade */}
+                <div>
+                  <label htmlFor="cidade" className="block text-sm font-medium text-gray-700 mb-2">
+                    Cidade
+                  </label>
+                  <input
+                    type="text"
+                    id="cidade"
+                    name="cidade"
+                    value={formData.endereco.cidade}
+                    onChange={handleEnderecoChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nome da cidade"
+                  />
+                </div>
+
+                {/* Estado */}
+                <div>
+                  <label htmlFor="estado" className="block text-sm font-medium text-gray-700 mb-2">
+                    Estado
+                  </label>
+                  <input
+                    type="text"
+                    id="estado"
+                    name="estado"
+                    value={formData.endereco.estado}
+                    onChange={handleEnderecoChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="SP"
+                    maxLength={2}
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Checkboxes */}

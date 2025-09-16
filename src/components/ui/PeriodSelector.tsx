@@ -93,14 +93,16 @@ export function usePeriodSelector(initialPeriod?: PeriodOption) {
   );
 
   const getDateRange = useMemo(() => {
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(endDate.getDate() - selectedPeriod.days);
-    
-    return {
-      startDate,
-      endDate,
-      days: selectedPeriod.days
+    return () => {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(endDate.getDate() - selectedPeriod.days);
+      
+      return {
+        startDate,
+        endDate,
+        days: selectedPeriod.days
+      };
     };
   }, [selectedPeriod.days]);
 
